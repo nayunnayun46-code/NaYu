@@ -33,6 +33,7 @@
     .tag{font-size:12px; font-weight:1000; padding:4px 8px; border-radius:999px; border:1px solid rgba(255,255,255,.14);}
     .tag.ok{color:var(--ok); border-color:rgba(34,197,94,.35); background:rgba(34,197,94,.10);}
     .tag.bad{color:var(--bad); border-color:rgba(239,68,68,.35); background:rgba(239,68,68,.10);}
+    .tag.warn{color:var(--warn); border-color:rgba(245,158,11,.35); background:rgba(245,158,11,.10);}
 
     /* Wheel */
     .wheelWrap{ display:flex; justify-content:center; margin-top:10px; }
@@ -91,31 +92,36 @@
     table{width:100%; border-collapse:collapse; margin-top:10px;}
     th,td{padding:10px 8px; border-bottom:1px solid rgba(255,255,255,.08); text-align:left;}
     .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;}
+    .sep{height:1px;background:rgba(255,255,255,.08); margin:12px 0;}
   </style>
 </head>
 <body>
   <div class="row space">
     <div class="row">
       <div class="big">🎲 American Roulette</div>
-      <div class="muted" id="status">준비됨</div>
+      <span id="phaseTag" class="tag ok">OPEN</span>
+      <div class="muted" id="stateLine">라운드 1 | 결과 -</div>
     </div>
     <div class="row">
-      <select id="role">
-        <option value="player" selected>Player</option>
-        <option value="dealer">Dealer</option>
-      </select>
-      <input id="name" placeholder="닉네임" maxlength="16" />
-      <button id="join">입장</button>
-      <button id="resetAll" title="전체 초기화">전체 리셋</button>
+      <button id="openBtn">OPEN</button>
+      <button id="closeBtn">CLOSE</button>
+      <button id="spinBtn">SPIN</button>
+      <button id="nextBtn">다음 라운드</button>
+      <button id="hardReset">전체 초기화</button>
     </div>
   </div>
 
   <div class="card">
     <div class="row space">
-      <div class="muted" id="stateLine">라운드 - | 상태 - | 결과 -</div>
       <div class="row">
-        <div class="pill"><span class="muted">내 잔액</span><span id="myBal">0</span></div>
-        <div class="pill"><span class="muted">최근 손익</span><span id="myNet">0</span></div>
+        <div class="pill"><span class="muted">잔액</span><span id="bal">0</span></div>
+        <div class="pill"><span class="muted">이번 손익</span><span id="net">0</span></div>
+      </div>
+      <div class="row">
+        <input id="cash" placeholder="금액" inputmode="numeric" />
+        <button id="deposit">입금(+)</button>
+        <button id="withdraw">회수(-)</button>
+        <button id="setbal">설정(=)</button>
       </div>
     </div>
 
@@ -129,40 +135,11 @@
         </div>
       </div>
     </div>
+
+    <div class="muted" style="margin-top:10px" id="log">준비됨.</div>
   </div>
 
-  <div class="card" id="dealerCard" style="display:none;">
-    <div class="row space">
-      <div class="big">딜러 조작</div>
-      <div class="row">
-        <span id="dealerLockTag" class="tag bad">잠김</span>
-      </div>
-    </div>
-
-    <div class="row" style="margin-top:10px;">
-      <input id="dealerPin" placeholder="딜러 PIN" type="password" inputmode="numeric" maxlength="8" />
-      <button id="dealerUnlock">잠금 해제</button>
-      <div class="muted" id="dealerLockState">PIN 필요</div>
-    </div>
-
-    <div class="row" style="margin-top:10px;">
-      <button id="dOpen">OPEN(배팅 받기)</button>
-      <button id="dClose">CLOSE(마감)</button>
-      <select id="dResult"><option value="">결과 선택</option></select>
-      <button id="dSpin">SPIN(결과 확정/정산)</button>
-      <button id="dNext">다음 라운드</button>
-    </div>
-
-    <div class="big" style="margin-top:14px;">플레이어 현황</div>
-    <table>
-      <thead>
-        <tr><th>이름</th><th>잔액</th><th>배팅수</th><th>배팅합</th><th>최근 손익</th></tr>
-      </thead>
-      <tbody id="dealerTable"></tbody>
-    </table>
-  </div>
-
-  <div class="card" id="playerCard">
+  <div class="card">
     <div class="big">배팅</div>
     <div class="row" style="margin-top:10px;">
       <select id="chip">
@@ -170,13 +147,14 @@
         <option value="500">500</option>
         <option value="1000" selected>1000</option>
         <option value="5000">5000</option>
+        <option value="10000">10000</option>
       </select>
       <select id="mode">
         <option value="straight">한칸(스트레이트) 36배</option>
         <option value="split">2칸(스플릿) 18배</option>
         <option value="corner">4칸(코너) 9배</option>
       </select>
-      <button id="clear">배팅 초기화</button>
+      <button id="clearBets">배팅 초기화</button>
     </div>
 
     <div class="row" style="margin-top:10px;">
@@ -198,29 +176,22 @@
     </div>
     <div class="grid" id="grid"></div>
 
-    <div class="muted" style="margin-top:10px" id="hint">
-      입장 후 OPEN 상태에서 배팅 가능. 0/00은 스트레이트만.
-    </div>
-
     <div class="card" style="margin-top:12px;">
-      <div class="big">내 배팅 내역(이번 라운드)</div>
-      <div class="muted mono" id="myBets">-</div>
+      <div class="big">배팅 내역(이번 라운드)</div>
+      <div class="muted mono" id="betsText">-</div>
     </div>
   </div>
 
 <script>
 (() => {
-  // ===== Config =====
-  const DEALER_PIN = "4323";
-
-  // ===== Game data =====
+  // ===== Data =====
   const REDS = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
   const PAY = { straight:36, split:18, corner:9, evenmoney:2, dozen:3, column:3 };
   const WHEEL_ORDER = ["0","28","9","26","30","11","7","20","32","17","5","22","34","15","3","24","36","13","1","00","27","10","25","29","12","8","19","31","18","6","21","33","16","4","23","35","14","2"];
 
-  const fmt = n => Number(n).toLocaleString("ko-KR");
-  const uid = () => Math.random().toString(36).slice(2,10);
+  const LS = "roulette_solo_v1";
   const now = () => Date.now();
+  const fmt = n => Number(n).toLocaleString("ko-KR");
 
   function colorOf(n){
     if (n==="0"||n==="00") return "GREEN";
@@ -239,25 +210,26 @@
     const dr=Math.abs(pa.r-pb.r), dc=Math.abs(pa.c-pb.c);
     return (dr===0&&dc===1)||(dr===1&&dc===0);
   }
+  function parseMoney(s){
+    const n = Number(String(s).replace(/[^\d.-]/g,""));
+    return Number.isFinite(n) ? Math.trunc(n) : NaN;
+  }
 
-  // ===== Sync layer =====
-  const channelName = "roulette-room-v1";
-  const bc = new BroadcastChannel(channelName);
-
-  const LS_KEY = "roulette_state_v1";
   const defaultState = () => ({
     ver: 1,
-    phase: "OPEN",
     round: 1,
+    phase: "OPEN",   // OPEN | CLOSED | SETTLED
     result: null,
-    dealerId: null,
-    updatedAt: now(),
-    players: {}
+    balance: 0,
+    net: 0,
+    bets: [] // {label, nums:[...], amount, multiplier}
   });
 
-  function loadState(){
+  let state = load();
+
+  function load(){
     try{
-      const raw = localStorage.getItem(LS_KEY);
+      const raw = localStorage.getItem(LS);
       if (!raw) return defaultState();
       const s = JSON.parse(raw);
       if (!s || s.ver !== 1) return defaultState();
@@ -266,47 +238,31 @@
       return defaultState();
     }
   }
-  function saveState(s){
-    s.updatedAt = now();
-    localStorage.setItem(LS_KEY, JSON.stringify(s));
-  }
-  let state = loadState();
-
-  function broadcast(type, payload){
-    bc.postMessage({ type, payload, from: myId, at: now() });
+  function save(){
+    localStorage.setItem(LS, JSON.stringify(state));
   }
 
-  // ===== UI refs =====
-  const elStatus = document.getElementById("status");
-  const elRole = document.getElementById("role");
-  const elName = document.getElementById("name");
-  const elJoin = document.getElementById("join");
-  const elResetAll = document.getElementById("resetAll");
+  // ===== UI =====
+  const phaseTag = document.getElementById("phaseTag");
+  const stateLine = document.getElementById("stateLine");
+  const balEl = document.getElementById("bal");
+  const netEl = document.getElementById("net");
+  const logEl = document.getElementById("log");
 
-  const elStateLine = document.getElementById("stateLine");
-  const elMyBal = document.getElementById("myBal");
-  const elMyNet = document.getElementById("myNet");
-  const elMyBets = document.getElementById("myBets");
+  const openBtn = document.getElementById("openBtn");
+  const closeBtn = document.getElementById("closeBtn");
+  const spinBtn = document.getElementById("spinBtn");
+  const nextBtn = document.getElementById("nextBtn");
+  const hardReset = document.getElementById("hardReset");
 
-  const dealerCard = document.getElementById("dealerCard");
-  const playerCard = document.getElementById("playerCard");
-  const dealerTable = document.getElementById("dealerTable");
-
-  const dealerPinEl = document.getElementById("dealerPin");
-  const dealerUnlockBtn = document.getElementById("dealerUnlock");
-  const dealerLockState = document.getElementById("dealerLockState");
-  const dealerLockTag = document.getElementById("dealerLockTag");
-
-  const dOpen = document.getElementById("dOpen");
-  const dClose = document.getElementById("dClose");
-  const dResult = document.getElementById("dResult");
-  const dSpin = document.getElementById("dSpin");
-  const dNext = document.getElementById("dNext");
+  const cash = document.getElementById("cash");
+  const deposit = document.getElementById("deposit");
+  const withdraw = document.getElementById("withdraw");
+  const setbal = document.getElementById("setbal");
 
   const chipEl = document.getElementById("chip");
   const modeEl = document.getElementById("mode");
-  const clearBtn = document.getElementById("clear");
-  const hintEl = document.getElementById("hint");
+  const clearBets = document.getElementById("clearBets");
 
   const bRed = document.getElementById("bRed");
   const bBlack = document.getElementById("bBlack");
@@ -320,105 +276,14 @@
   const bC3 = document.getElementById("bC3");
 
   const gridEl = document.getElementById("grid");
+  const betsText = document.getElementById("betsText");
 
   const wheel = document.getElementById("wheel");
   const wheelNum = document.getElementById("wheelNum");
   const wheelTag = document.getElementById("wheelTag");
-
-  // ===== Identity =====
-  const myId = (localStorage.getItem("roulette_myid_v1") || (() => {
-    const id = uid();
-    localStorage.setItem("roulette_myid_v1", id);
-    return id;
-  })());
-
-  let isJoined = false;
-  let myRole = "player";
-  let splitFirst = null;
-
-  // ===== Dealer lock =====
-  let dealerUnlocked = false;
-
-  function isDealer(){
-    return dealerUnlocked && myRole === "dealer" && state.dealerId === myId;
-  }
-
-  function canBecomeDealer(){
-    // PIN이 맞고, 아직 딜러가 없을 때만 딜러 점유
-    return dealerUnlocked && myRole === "dealer" && !state.dealerId;
-  }
-
-  function updateDealerLockUI(){
-    if (dealerUnlocked){
-      dealerLockTag.className = "tag ok";
-      dealerLockTag.textContent = "해제됨";
-      dealerLockState.textContent = (state.dealerId === myId) ? "딜러 권한 활성" : (!state.dealerId ? "딜러 대기(점유 가능)" : "다른 딜러가 점유 중");
-    } else {
-      dealerLockTag.className = "tag bad";
-      dealerLockTag.textContent = "잠김";
-      dealerLockState.textContent = "PIN 필요";
-    }
-  }
-
-  dealerUnlockBtn.onclick = () => {
-    if ((dealerPinEl.value || "").trim() === DEALER_PIN){
-      dealerUnlocked = true;
-
-      // PIN 해제 후, 딜러가 없으면 이 탭이 딜러를 점유
-      if (myRole === "dealer" && !state.dealerId){
-        state.dealerId = myId;
-        saveState(state);
-        broadcast("state_sync", { state });
-      }
-
-      updateDealerLockUI();
-      renderState();
-    } else {
-      dealerUnlocked = false;
-      updateDealerLockUI();
-      alert("PIN 틀림");
-      renderState();
-    }
-  };
-
-  // ===== Local badges from my bets =====
-  const localTotals = new Map();
-  function recomputeLocalBadges(){
-    localTotals.clear();
-    const me = state.players[myId];
-    if (!me) return;
-    for (const b of me.bets){
-      for (const n of b.nums){
-        localTotals.set(n, (localTotals.get(n)||0) + b.amount);
-      }
-    }
-  }
-  function renderBadges(){
-    document.querySelectorAll(".cell").forEach(cell=>{
-      const n = cell.dataset.n;
-      const b = cell.querySelector(".badge");
-      const v = localTotals.get(n) || 0;
-      if (v>0){ b.style.display="inline-block"; b.textContent=fmt(v); }
-      else { b.style.display="none"; b.textContent=""; }
-    });
-  }
-
-  // ===== UI lock for player controls =====
-  function setLocked(locked){
-    const nodes = playerCard.querySelectorAll("button, select, .cell");
-    nodes.forEach(el=>{
-      if (el.id === "join" || el.id === "name") return;
-      if (el.tagName === "BUTTON" || el.tagName === "SELECT") el.disabled = locked;
-      el.style.opacity = locked ? "0.45" : "1";
-      el.style.pointerEvents = locked ? "none" : "auto";
-    });
-    elJoin.disabled = false;
-    elName.disabled = false;
-  }
-
-  // ===== Wheel rendering =====
   let wheelAngle = 0;
 
+  // ===== Wheel render =====
   function renderWheel(){
     const slice = 360 / WHEEL_ORDER.length;
     const stops = [];
@@ -459,166 +324,7 @@
     wheelTag.textContent = colorOf(r);
   }
 
-  // ===== Betting sets =====
-  const numsRed = () => Array.from({length:36},(_,i)=>String(i+1)).filter(x=>REDS.has(Number(x)));
-  const numsBlack = () => Array.from({length:36},(_,i)=>String(i+1)).filter(x=>!REDS.has(Number(x)));
-  const numsOdd = () => Array.from({length:36},(_,i)=>String(i+1)).filter(x=>Number(x)%2===1);
-  const numsEven = () => Array.from({length:36},(_,i)=>String(i+1)).filter(x=>Number(x)%2===0);
-  const numsDozen = (a,b) => Array.from({length:b-a+1},(_,i)=>String(a+i));
-  const numsColumn = (col) => {
-    const out=[]; for(let n=1;n<=36;n++) if(((n-1)%3)===(col-1)) out.push(String(n));
-    return out;
-  };
-
-  // ===== Game logic =====
-  function settleAll(result){
-    state.result = String(result);
-
-    for (const pid of Object.keys(state.players)){
-      const p = state.players[pid];
-      let totalBet = 0;
-      let totalPayout = 0;
-
-      for (const b of p.bets){
-        totalBet += b.amount;
-        const win = b.nums.map(String).includes(String(result));
-        if (win) totalPayout += b.amount * b.multiplier;
-      }
-
-      const net = totalPayout - totalBet;
-      p.balance += net;
-      p.lastNet = net;
-    }
-
-    state.phase = "SETTLED";
-    saveState(state);
-  }
-
-  function startNextRound(){
-    state.round += 1;
-    state.phase = "OPEN";
-    state.result = null;
-    for (const pid of Object.keys(state.players)){
-      state.players[pid].bets = [];
-      state.players[pid].lastNet = 0;
-    }
-    saveState(state);
-  }
-
-  function dealerSetPhase(nextPhase){
-    if (!isDealer()) { alert("딜러 권한 없음(잠금 해제 필요)"); return; }
-    state.phase = nextPhase;
-    if (nextPhase === "OPEN") state.result = null;
-    saveState(state);
-    broadcast("state_sync", { state });
-  }
-
-  // ===== Player actions =====
-  function mustBeReady(){
-    if (!isJoined) return "먼저 입장해.";
-    if (state.phase !== "OPEN") return "지금은 배팅 시간이 아님.";
-    if (!state.dealerId) return "딜러가 아직 없음.";
-    return null;
-  }
-
-  function requestPlaceBet(bet){
-    const err = mustBeReady();
-    if (err){ alert(err); return; }
-    broadcast("bet_request", { bet, round: state.round, toDealer: state.dealerId });
-  }
-
-  function placeSide(label, nums, multiplier){
-    const amount = Number(chipEl.value);
-    requestPlaceBet({ label, nums, amount, multiplier });
-  }
-
-  function placeOnNumber(n){
-    const err = mustBeReady();
-    if (err){ alert(err); return; }
-
-    const mode = modeEl.value;
-    const amount = Number(chipEl.value);
-
-    if (mode === "straight"){
-      requestPlaceBet({ label:`스트레이트[${n}]`, nums:[n], amount, multiplier: PAY.straight });
-      return;
-    }
-
-    if (mode === "split"){
-      if (n==="0"||n==="00"){ alert("0/00 스플릿 불가"); return; }
-      if (!splitFirst){
-        splitFirst = n;
-        hintEl.textContent = `스플릿 1번째: ${splitFirst} (인접 숫자 1개 더 클릭)`;
-        return;
-      }
-      const a=splitFirst; splitFirst=null;
-      if (!isAdj(a,n)){ alert(`${a} 와 ${n} 은 인접이 아님`); return; }
-      const nums=[a,n].sort((x,y)=>Number(x)-Number(y));
-      requestPlaceBet({ label:`스플릿[${nums.join(",")}]`, nums, amount, multiplier: PAY.split });
-      return;
-    }
-
-    if (mode === "corner"){
-      if (n==="0"||n==="00"){ alert("0/00 코너 불가"); return; }
-      const p = posOf(n);
-      if (p.c>=2 || p.r>=11){ alert(`${n}은 코너 기준점 불가`); return; }
-      const nn=Number(n);
-      const nums=[String(nn),String(nn+1),String(nn+3),String(nn+4)];
-      requestPlaceBet({ label:`코너[${nums.join(",")}]`, nums, amount, multiplier: PAY.corner });
-      return;
-    }
-  }
-
-  // ===== Dealer validates & accepts bet =====
-  function dealerAcceptBet(fromId, payload){
-    if (!isDealer()) return;
-
-    const { bet, round, toDealer } = payload;
-    if (toDealer !== myId) return;
-    if (round !== state.round) {
-      broadcast("bet_reply", { ok:false, to:fromId, message:"라운드가 바뀜. 다시 배팅해." });
-      return;
-    }
-    if (state.phase !== "OPEN"){
-      broadcast("bet_reply", { ok:false, to:fromId, message:"배팅 마감" });
-      return;
-    }
-    const p = state.players[fromId];
-    if (!p){
-      broadcast("bet_reply", { ok:false, to:fromId, message:"입장 필요" });
-      return;
-    }
-
-    const amount = Number(bet.amount);
-    const multiplier = Number(bet.multiplier);
-    const nums = Array.isArray(bet.nums) ? bet.nums.map(String) : [];
-    if (!Number.isFinite(amount) || amount <= 0 || amount > 1_000_000){
-      broadcast("bet_reply", { ok:false, to:fromId, message:"금액 오류" }); return;
-    }
-    if (![PAY.straight, PAY.split, PAY.corner, PAY.evenmoney, PAY.dozen, PAY.column].includes(multiplier)){
-      broadcast("bet_reply", { ok:false, to:fromId, message:"배당 오류" }); return;
-    }
-    if (nums.length < 1){
-      broadcast("bet_reply", { ok:false, to:fromId, message:"대상 없음" }); return;
-    }
-    if ((multiplier === PAY.evenmoney || multiplier === PAY.dozen || multiplier === PAY.column) &&
-        (nums.includes("0") || nums.includes("00"))){
-      broadcast("bet_reply", { ok:false, to:fromId, message:"0/00은 해당 배팅 불가" }); return;
-    }
-
-    p.bets.push({
-      label: String(bet.label || "BET").slice(0,40),
-      nums,
-      amount,
-      multiplier
-    });
-
-    saveState(state);
-    broadcast("bet_reply", { ok:true, to:fromId, message:"배팅 접수", state });
-    broadcast("state_sync", { state });
-  }
-
-  // ===== Rendering =====
+  // ===== Grid =====
   function renderGrid(){
     gridEl.innerHTML = "";
     for (let i=1;i<=36;i++){
@@ -638,117 +344,242 @@
     });
   }
 
-  function renderDealerResultOptions(){
-    dResult.innerHTML = `<option value="">결과 선택</option>`;
-    for (const v of ["0","00", ...Array.from({length:36},(_,i)=>String(i+1))]){
-      const opt = document.createElement("option");
-      opt.value = v; opt.textContent = v;
-      dResult.appendChild(opt);
-    }
-  }
-
-  function renderState(){
-    elStatus.textContent = "준비됨";
-    elStateLine.textContent = `라운드 ${state.round} | 상태 ${state.phase} | 결과 ${state.result ?? "-"}`;
-
-    dealerCard.style.display = (myRole === "dealer") ? "block" : "none";
-
-    const me = state.players[myId];
-    elMyBal.textContent = fmt(me?.balance ?? 0);
-    elMyNet.textContent = (me?.lastNet >= 0 ? "+" : "") + fmt(me?.lastNet ?? 0);
-
-    if (!isJoined){
-      hintEl.textContent = "닉네임 입력 후 '입장'을 눌러.";
-      setLocked(true);
-    } else if (state.phase !== "OPEN"){
-      hintEl.textContent = "배팅 마감. 결과 대기.";
-      setLocked(true);
-    } else {
-      hintEl.textContent = "배팅 가능.";
-      setLocked(false);
-    }
-
-    if (me){
-      elMyBets.textContent = me.bets.length
-        ? me.bets.map(b => `${b.label} | x${b.multiplier} | ${fmt(b.amount)} | [${b.nums.join(",")}]`).join("\n")
-        : "-";
-    } else {
-      elMyBets.textContent = "-";
-    }
-
-    recomputeLocalBadges();
-    renderBadges();
-
-    dealerTable.innerHTML = "";
-    if (myRole === "dealer"){
-      for (const [pid, p] of Object.entries(state.players)){
-        const betCount = p.bets.length;
-        const betSum = p.bets.reduce((s,b)=>s+b.amount,0);
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${p.name}</td><td>${fmt(p.balance)}</td><td>${betCount}</td><td>${fmt(betSum)}</td><td>${(p.lastNet>=0?"+":"")+fmt(p.lastNet||0)}</td>`;
-        dealerTable.appendChild(tr);
+  // ===== Bets + badges =====
+  const localTotals = new Map();
+  function recomputeBadges(){
+    localTotals.clear();
+    for (const b of state.bets){
+      for (const n of b.nums){
+        localTotals.set(n, (localTotals.get(n)||0) + b.amount);
       }
     }
+    document.querySelectorAll(".cell").forEach(cell=>{
+      const n = cell.dataset.n;
+      const badge = cell.querySelector(".badge");
+      const v = localTotals.get(n) || 0;
+      if (v>0){ badge.style.display="inline-block"; badge.textContent=fmt(v); }
+      else { badge.style.display="none"; badge.textContent=""; }
+    });
+  }
 
-    updateDealerLockUI();
+  function renderBetsText(){
+    betsText.textContent = state.bets.length
+      ? state.bets.map(b => `${b.label} | x${b.multiplier} | ${fmt(b.amount)} | [${b.nums.join(",")}]`).join("\n")
+      : "-";
+  }
 
-    // 딜러 버튼 활성 조건
-    if (myRole === "dealer"){
-      const ok = isDealer();
-      dOpen.disabled = !ok || state.phase === "OPEN";
-      dClose.disabled = !ok || state.phase !== "OPEN";
-      dSpin.disabled = !ok || state.phase !== "CLOSED" || !dResult.value;
-      dNext.disabled = !ok || state.phase === "OPEN";
+  function totalBetAmount(){
+    return state.bets.reduce((s,b)=>s+b.amount,0);
+  }
+
+  function canBet(){
+    return state.phase === "OPEN";
+  }
+
+  function ensureBettable(){
+    if (!canBet()) { alert("지금은 배팅 시간이 아님."); return false; }
+    return true;
+  }
+
+  function addBet(bet){
+    if (!ensureBettable()) return;
+
+    const amount = Number(bet.amount);
+    if (!Number.isFinite(amount) || amount <= 0) { alert("금액 오류"); return; }
+
+    // 잔액 부족 막고 싶으면 이 줄 켜면 됨.
+    if (state.balance < totalBetAmount() + amount){
+      alert("잔액 부족");
+      return;
+    }
+
+    // 0/00은 evenmoney/dozen/column 불가
+    if ((bet.multiplier === PAY.evenmoney || bet.multiplier === PAY.dozen || bet.multiplier === PAY.column) &&
+        (bet.nums.includes("0") || bet.nums.includes("00"))){
+      alert("0/00은 해당 배팅 불가");
+      return;
+    }
+
+    state.bets.push({
+      label: String(bet.label).slice(0,40),
+      nums: bet.nums.map(String),
+      amount,
+      multiplier: Number(bet.multiplier)
+    });
+    save();
+    logEl.textContent = `배팅 추가: ${bet.label} (${fmt(amount)})`;
+    render();
+  }
+
+  // side sets
+  const numsRed = () => Array.from({length:36},(_,i)=>String(i+1)).filter(x=>REDS.has(Number(x)));
+  const numsBlack = () => Array.from({length:36},(_,i)=>String(i+1)).filter(x=>!REDS.has(Number(x)));
+  const numsOdd = () => Array.from({length:36},(_,i)=>String(i+1)).filter(x=>Number(x)%2===1);
+  const numsEven = () => Array.from({length:36},(_,i)=>String(i+1)).filter(x=>Number(x)%2===0);
+  const numsDozen = (a,b) => Array.from({length:b-a+1},(_,i)=>String(a+i));
+  const numsColumn = (col) => {
+    const out=[]; for(let n=1;n<=36;n++) if(((n-1)%3)===(col-1)) out.push(String(n));
+    return out;
+  };
+
+  function placeSide(label, nums, multiplier){
+    addBet({ label, nums, amount:Number(chipEl.value), multiplier });
+  }
+
+  let splitFirst = null;
+  function placeOnNumber(n){
+    if (!ensureBettable()) return;
+
+    const mode = modeEl.value;
+    const amount = Number(chipEl.value);
+
+    if (mode === "straight"){
+      addBet({ label:`스트레이트[${n}]`, nums:[n], amount, multiplier: PAY.straight });
+      return;
+    }
+
+    if (mode === "split"){
+      if (n==="0"||n==="00"){ alert("0/00 스플릿 불가"); return; }
+      if (!splitFirst){
+        splitFirst = n;
+        logEl.textContent = `스플릿 1번째 선택: ${splitFirst} (인접 숫자 1개 더 클릭)`;
+        return;
+      }
+      const a=splitFirst; splitFirst=null;
+      if (!isAdj(a,n)){ alert(`${a} 와 ${n} 은 인접이 아님`); return; }
+      const nums=[a,n].sort((x,y)=>Number(x)-Number(y));
+      addBet({ label:`스플릿[${nums.join(",")}]`, nums, amount, multiplier: PAY.split });
+      return;
+    }
+
+    if (mode === "corner"){
+      if (n==="0"||n==="00"){ alert("0/00 코너 불가"); return; }
+      const p = posOf(n);
+      if (p.c>=2 || p.r>=11){ alert(`${n}은 코너 기준점 불가`); return; }
+      const nn=Number(n);
+      const nums=[String(nn),String(nn+1),String(nn+3),String(nn+4)];
+      addBet({ label:`코너[${nums.join(",")}]`, nums, amount, multiplier: PAY.corner });
+      return;
     }
   }
 
-  // ===== Join / role =====
-  function registerSelf(){
-    const name = (elName.value.trim() || (myRole==="dealer" ? "DEALER" : "Player")).slice(0,16);
-    myRole = elRole.value;
+  // ===== Phase control =====
+  function setPhase(phase){
+    state.phase = phase;
+    save();
+    render();
+  }
 
-    // player record
-    if (!state.players[myId]){
-      state.players[myId] = { name, balance: 0, lastNet: 0, bets: [] };
-    } else {
-      state.players[myId].name = name;
+  function settle(result){
+    const r = String(result);
+    state.result = r;
+
+    let totalBet = 0;
+    let totalPay = 0;
+
+    for (const b of state.bets){
+      totalBet += b.amount;
+      const win = b.nums.includes(r);
+      if (win) totalPay += b.amount * b.multiplier;
     }
 
-    // 딜러는 PIN 해제 전에는 dealerId를 점유하지 않음
-    // (PIN 해제 버튼 눌렀을 때만 dealerId 점유 가능)
-    if (myRole !== "dealer" && state.dealerId === myId){
-      // 혹시 이전에 딜러였다가 player로 바꾼 경우: 딜러 유지하지 않음
-      state.dealerId = null;
-    }
+    const net = totalPay - totalBet;
+    state.balance += net;
+    state.net = net;
+    state.phase = "SETTLED";
+    save();
 
-    saveState(state);
-    isJoined = true;
-    broadcast("state_sync", { state });
-    renderState();
+    logEl.textContent = `결과 ${r} (${colorOf(r)}) | 배팅 ${fmt(totalBet)} | 당첨 ${fmt(totalPay)} | 손익 ${(net>=0?"+":"")}${fmt(net)}`;
+    render();
+  }
+
+  function randomResult(){
+    // American: 0,00 + 1..36 => 38칸 동등 랜덤
+    const all = ["0","00", ...Array.from({length:36},(_,i)=>String(i+1))];
+    return all[Math.floor(Math.random()*all.length)];
+  }
+
+  // ===== Cash ops =====
+  function cashOp(op){
+    const amt = parseMoney(cash.value);
+    if (!Number.isFinite(amt) || amt < 0) { alert("금액 오류"); return; }
+    if (op === "deposit") state.balance += amt;
+    if (op === "withdraw") state.balance -= amt;
+    if (op === "set") state.balance = amt;
+    save();
+    render();
+  }
+
+  // ===== Render =====
+  function render(){
+    // tags
+    phaseTag.className = "tag " + (state.phase==="OPEN" ? "ok" : state.phase==="CLOSED" ? "warn" : "bad");
+    phaseTag.textContent = state.phase;
+
+    stateLine.textContent = `라운드 ${state.round} | 결과 ${state.result ?? "-"}`;
+    balEl.textContent = fmt(state.balance);
+    netEl.textContent = (state.net>=0?"+":"") + fmt(state.net);
+
+    // buttons
+    openBtn.disabled = state.phase==="OPEN";
+    closeBtn.disabled = state.phase!=="OPEN";
+    spinBtn.disabled = state.phase!=="CLOSED";
+    nextBtn.disabled = state.phase==="OPEN";
+    // bet UI lock
+    const betDisabled = state.phase!=="OPEN";
+    document.querySelectorAll("#chip,#mode,#clearBets,#bRed,#bBlack,#bOdd,#bEven,#bD1,#bD2,#bD3,#bC1,#bC2,#bC3").forEach(el=>el.disabled = betDisabled);
+    document.querySelectorAll(".cell").forEach(el=>{
+      el.style.pointerEvents = betDisabled ? "none" : "auto";
+      el.style.opacity = betDisabled ? "0.45" : "1";
+    });
+
+    renderBetsText();
+    recomputeBadges();
   }
 
   // ===== Events =====
-  elJoin.onclick = registerSelf;
+  openBtn.onclick = () => { setPhase("OPEN"); logEl.textContent = "OPEN: 배팅 받기"; };
+  closeBtn.onclick = () => { setPhase("CLOSED"); logEl.textContent = "CLOSE: 배팅 마감"; };
 
-  elRole.onchange = () => {
-    myRole = elRole.value;
-    dealerCard.style.display = (myRole === "dealer") ? "block" : "none";
-    renderState();
+  spinBtn.onclick = () => {
+    if (state.phase !== "CLOSED") return;
+    const r = randomResult();
+    // spin animation now, settle after delay
+    spinToResult(r);
+    setTimeout(() => settle(r), 1200);
   };
 
-  elResetAll.onclick = () => {
-    if (!confirm("정말 전체 리셋?")) return;
+  nextBtn.onclick = () => {
+    state.round += 1;
+    state.phase = "OPEN";
+    state.result = null;
+    state.net = 0;
+    state.bets = [];
+    save();
+    logEl.textContent = "다음 라운드 시작";
+    render();
+  };
+
+  hardReset.onclick = () => {
+    if (!confirm("정말 전체 초기화?")) return;
     state = defaultState();
-    saveState(state);
-    broadcast("hard_reset", {});
-    location.reload();
+    save();
+    logEl.textContent = "초기화 완료";
+    wheelNum.textContent = "—";
+    wheelTag.textContent = "READY";
+    render();
   };
 
-  clearBtn.onclick = () => {
-    if (!isJoined) { alert("입장 먼저"); return; }
-    if (state.phase !== "OPEN") { alert("OPEN에서만"); return; }
-    if (!state.dealerId) { alert("딜러 없음"); return; }
-    broadcast("clear_request", { toDealer: state.dealerId, round: state.round });
+  deposit.onclick = () => cashOp("deposit");
+  withdraw.onclick = () => cashOp("withdraw");
+  setbal.onclick = () => cashOp("set");
+
+  clearBets.onclick = () => {
+    if (!ensureBettable()) return;
+    state.bets = [];
+    save();
+    logEl.textContent = "배팅 초기화";
+    render();
   };
 
   bRed.onclick = () => placeSide("레드", numsRed(), PAY.evenmoney);
@@ -762,106 +593,12 @@
   bC2.onclick = () => placeSide("2열", numsColumn(2), PAY.column);
   bC3.onclick = () => placeSide("3열", numsColumn(3), PAY.column);
 
-  dOpen.onclick = () => dealerSetPhase("OPEN");
-  dClose.onclick = () => dealerSetPhase("CLOSED");
-
-  dSpin.onclick = () => {
-    if (!isDealer()) { alert("딜러 권한 없음(잠금 해제 필요)"); return; }
-    if (state.phase !== "CLOSED") { alert("마감 후 결과 확정"); return; }
-    if (!dResult.value) { alert("결과 선택"); return; }
-
-    const r = dResult.value;
-    broadcast("spin", { result: r, round: state.round });
-    setTimeout(() => {
-      settleAll(r);
-      broadcast("state_sync", { state });
-    }, 1200);
-  };
-
-  dNext.onclick = () => {
-    if (!isDealer()) { alert("딜러 권한 없음(잠금 해제 필요)"); return; }
-    startNextRound();
-    broadcast("state_sync", { state });
-  };
-
-  dResult.onchange = () => renderState();
-
-  // ===== Broadcast receive =====
-  bc.onmessage = (ev) => {
-    const msg = ev.data || {};
-    const { type, payload, from } = msg;
-
-    if (type === "hard_reset"){
-      state = defaultState();
-      saveState(state);
-      renderState();
-      return;
-    }
-
-    if (type === "state_sync"){
-      const incoming = payload?.state;
-      if (incoming && (incoming.updatedAt ?? 0) >= (state.updatedAt ?? 0)){
-        state = incoming;
-        saveState(state);
-        renderState();
-      }
-      return;
-    }
-
-    if (type === "spin"){
-      const r = payload?.result;
-      if (!r) return;
-      spinToResult(r);
-      return;
-    }
-
-    if (type === "bet_request"){
-      dealerAcceptBet(from, payload);
-      return;
-    }
-
-    if (type === "bet_reply"){
-      if (payload?.to !== myId) return;
-      if (!payload.ok){ alert(payload.message || "배팅 실패"); return; }
-      if (payload.state){
-        state = payload.state;
-        saveState(state);
-      }
-      renderState();
-      return;
-    }
-
-    if (type === "clear_request"){
-      if (!isDealer()) return;
-      if (payload?.toDealer !== myId) return;
-      if (payload?.round !== state.round) return;
-
-      const p = state.players[from];
-      if (p){
-        p.bets = [];
-        saveState(state);
-        broadcast("state_sync", { state });
-        broadcast("bet_reply", { ok:true, to:from, message:"배팅 초기화됨", state });
-      }
-      return;
-    }
-  };
-
   // ===== Init =====
   function init(){
     renderWheel();
     renderGrid();
-    renderDealerResultOptions();
-
-    myRole = elRole.value;
-    dealerCard.style.display = (myRole === "dealer") ? "block" : "none";
-
-    // PIN 상태 초기 표시
-    updateDealerLockUI();
-
-    renderState();
+    render();
   }
-
   init();
 })();
 </script>
